@@ -1,6 +1,49 @@
+
 from math import *
 from random import *
 from sys import exit
+
+
+def generate_inputs_list(training_num):
+    l = []
+    for i in range(training_num):
+        x = uniform(-1, 1)
+        y = uniform(-1, 1)
+        l.append([[x, y]])
+        if x >= y:
+            l[i].append([1, 0])
+        else:
+            l[i].append([0, 1])
+    return l
+
+
+def init_node_structure():
+    x = []
+    for layer in range(len(nodesPerLayer)):
+        x.append([])
+        for node in range(nodesPerLayer[layer]):
+            x[layer].append(0)
+    return x
+
+
+def init_weight_structure():
+    x = []
+    for layer in range(len(nodesPerLayer) - 1):
+        x.append([])
+        wireNum = nodesPerLayer[layer] * nodesPerLayer[layer + 1]
+        for wire in range(wireNum):
+            W = 0
+            while not W:
+                W = uniform(0, 0.00000001)
+            x[layer].append(W)
+    return x
+
+
+def init_network():
+    global nodesPerLayer, nodeStructure, weightStructure
+    nodesPerLayer = [2, 2]
+    nodeStructure = init_node_structure()
+    weightStructure = init_weight_structure()
 
 
 def sigmoid(x):
@@ -16,68 +59,96 @@ def cost_output_node(i, final_node, aim):
     c[i] = (final_node[i] - aim[i]) ** 2
 
 
-def round_n_to_rdp(n,r):
+def round_n_to_rdp(n, r):
     return round((10**r)*n)/(10**r)
 
 
+def val_of_node(x, y):
+    s = 0
+    for i in range(nodesPerLayer[x-1]):
+        s += n[x-1][i] * w[x-1][y + i * nodesPerLayer[x]]
+    return s
+
+
+def aim_of_prev_node(x, y):
+    s = 0
+    for i in range(nodesPerLayer[x+1]):
+        if w[x][y + i * nodesPerLayer[x]]:
+            s += a[x+1][i] * w[x][y + i * nodesPerLayer[x]]
+    return (1/nodesPerLayer[x-1]) * s
+
+
+def new_weight_calc(x, y, a, n):
+    return (a[x+1][y % nodesPerLayer[x+1]]) * (n[x][y // nodesPerLayer[x+1]])
+
+
+def refine_weights():
+    for k in range(len(weightStructure)):
+        m = 0
+        for l in w[k]:
+            m += abs(l)
+        m /= len(w[k])
+        for l in range(len(w[k])):
+            if m:
+                w[k][l] *= (1/m)
+
+
 def training():
-    global training_num, values
+    global training_num
     try:
         training_num = int(input("\nNumber of training examples: "))
     except:
         wrong_input()
-    inner_repeat_num = training_num
-    while inner_repeat_num >= training_num:
-        print("\nJust sayin', the number of samples must be less than the number of training examples...")
-        try:
-            inner_repeat_num = int(input("Number of samples per example: "))
-        except:
-            wrong_input()
-    for i in range(training_num):
-        x = uniform(-1, 1)
-        y = uniform(-1, 1)
-        inputs.append([[x, y]])
-        if x >= y:
-            inputs[i].append([1, 0])
-        else:
-            inputs[i].append([0, 1])
-
-    new_w = [[0, 0, 0, 0]]
-
+    inner_repeat_num = 10
+    inputs = generate_inputs_list(training_num)
+    new_w = init_weight_structure()
     for i in range(len(inputs)):
-        n = [inputs[i][0], [0, 0]]
-        final_node_temp = [0, 0]
+        # print(w)
+        n = nodeStructure
+        n[0] = inputs[i][0]
+        final_node_temp = nodeStructure[-1]
 
-        final_node_temp[0] = w[0][0] * n[0][0] + w[0][2] * n[0][1]
-        final_node_temp[1] = w[0][1] * n[0][0] + w[0][3] * n[0][1]
+        if len(nodesPerLayer) > 2:
+            for j in range(len(nodesPerLayer)-1):
+                if j:
+                    for k in range(nodesPerLayer[j]):
+                       n[j][k] = val_of_node(j, k)
 
-        cost_output_node(0, final_node_temp, inputs[i][1])
-        cost_output_node(1, final_node_temp, inputs[i][1])
+        for j in range(nodesPerLayer[-1]):
+            final_node_temp[j] = val_of_node(len(nodesPerLayer)-1, j)
 
-        new_w[0][0] += c[0] * n[0][0]
-        new_w[0][1] += c[1] * n[0][0]
-        new_w[0][2] += c[0] * n[0][1]
-        new_w[0][3] += c[1] * n[0][1]
-        n[1] = final_node_temp
+        for j in range(nodesPerLayer[-1]):
+            cost_output_node(j, final_node_temp, inputs[i][1])
+
+        a[-1] = c
+
+        n[len(nodesPerLayer)-1] = final_node_temp
+
+        if len(nodesPerLayer) > 2:
+            for j in range(len(nodesPerLayer)-2):
+                k = len(nodesPerLayer) - j - 2
+                for l in range(nodesPerLayer[k]):
+                    a[k][l] = aim_of_prev_node(k, l)
+
+        for j in range(len(weightStructure)):
+            for k in range(len(weightStructure[j])):
+                new_w[j][k] += new_weight_calc(j, k, a, n)
 
         if not i % inner_repeat_num and i:
-            avg = 0
-            for k in range(len(w[0])):
-                w[0][k] += sigmoid(new_w[0][k] / inner_repeat_num)
-                avg += w[0][k]
-            avg /= 4
-            for k in range(len(w[0])):
-                w[0][k] -= avg
-            new_w[0] = [0, 0, 0, 0]
+            for j in range(len(weightStructure)):
+                avg = 0
+                for k in range(len(w[j])):
+                    w[j][k] += sigmoid(new_w[j][k] / inner_repeat_num)
+                    avg += w[j][k]
+                avg /= len(weightStructure[j])
+                for k in range(len(w[j])):
+                    w[j][k] -= avg
+                refine_weights()
+            new_w = init_weight_structure()
 
-    m = 0
-    for i in w[0]:
-        m += abs(i)
-    m /= len(w[0])
-    for i in range(len(w[0])):
-        w[0][i] *= (1/m)
+    refine_weights()
 
-    return w[0]
+    return w
 
 
 def trialling():
@@ -88,14 +159,7 @@ def trialling():
         wrong_input()
     trials = []
     correct_num = 0
-    for i in range(trial_num):
-        x = uniform(-1, 1)
-        y = uniform(-1, 1)
-        trials.append([[x, y]])
-        if x >= y:
-            trials[i].append([1, 0])
-        else:
-            trials[i].append([0, 1])
+    trials = generate_inputs_list(trial_num)
 
     for i in range(trial_num):
         n[0] = trials[i][0]
@@ -105,19 +169,21 @@ def trialling():
         n[1][1] = round_n_to_rdp(sigmoid(n[1][1]*100), 4)
         if (n[1][0] > n[1][1] and not trials[i][1][1]) or (n[1][0] < n[1][1] and not trials[i][1][0]):
             correct_num += 1
-            print(n[1])
-    print('\nMy neural network was correct', 100 * correct_num / trial_num, '% of the time.')
+    print('\nMy neural network was correct', 100 * correct_num / trial_num, '% of the time.\n')
 
 
+init_network()
 play = True
 while play:
     inputs = []
-    n = [[0, 0], [0, 0]]
-    w = [[0, 0, 0, 0]]
+    n = init_node_structure()
+    w = init_weight_structure()
+    a = init_node_structure()
     c = [0, 0]
-    w[0] = training()
+    w = training()
     trialling()
-    print("Final weights:", w[0], "\n")
+    print("Last example:", n)
+    print("Final weights:", w, "\n")
     if input("Again [Y/n]: ") not in ["Y", "y"]:
         play = False
     print("")
