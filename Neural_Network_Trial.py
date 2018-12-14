@@ -4,6 +4,9 @@ from random import *
 from sys import exit
 
 
+nodesPerLayer = [2, 2]
+
+
 def generate_inputs_list(training_num):
     l = []
     for i in range(training_num):
@@ -33,21 +36,25 @@ def init_weight_structure():
         wireNum = nodesPerLayer[layer] * nodesPerLayer[layer + 1]
         for wire in range(wireNum):
             W = 0
-            while not W:
-                W = uniform(0, 0.00000001)
+            if len(nodesPerLayer) > 2:
+                while not W:
+                    W = uniform(0, 0.00000000001)
             x[layer].append(W)
     return x
 
 
 def init_network():
-    global nodesPerLayer, nodeStructure, weightStructure
-    nodesPerLayer = [2, 2]
+    global nodeStructure, weightStructure
     nodeStructure = init_node_structure()
     weightStructure = init_weight_structure()
 
 
 def sigmoid(x):
     return 1 / (1 + exp(-x))
+
+
+def exagerate_outputs(x):
+    return round_n_to_rdp(sigmoid(round_n_to_rdp(x*100, 1)), 1)
 
 
 def wrong_input():
@@ -99,7 +106,10 @@ def training():
         training_num = int(input("\nNumber of training examples: "))
     except:
         wrong_input()
-    inner_repeat_num = 10
+    if training_num > 10:
+        inner_repeat_num = 10
+    else:
+        inner_repeat_num = round(sqrt(training_num))
     inputs = generate_inputs_list(training_num)
     new_w = init_weight_structure()
     for i in range(len(inputs)):
@@ -165,8 +175,8 @@ def trialling():
         n[0] = trials[i][0]
         n[1][0] = w[0][0] * n[0][0] + w[0][2] * n[0][1]
         n[1][1] = w[0][1] * n[0][0] + w[0][3] * n[0][1]
-        n[1][0] = round_n_to_rdp(sigmoid(n[1][0]*100), 4)
-        n[1][1] = round_n_to_rdp(sigmoid(n[1][1]*100), 4)
+        n[1][0] = exagerate_outputs(n[1][0])
+        n[1][1] = exagerate_outputs(n[1][1])
         if (n[1][0] > n[1][1] and not trials[i][1][1]) or (n[1][0] < n[1][1] and not trials[i][1][0]):
             correct_num += 1
     print('\nMy neural network was correct', 100 * correct_num / trial_num, '% of the time.\n')
