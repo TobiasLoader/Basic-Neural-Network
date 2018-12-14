@@ -4,7 +4,7 @@ from random import *
 from sys import exit
 
 
-nodesPerLayer = [2, 2]
+nodesPerLayer = [2, 2, 2]
 
 
 def generate_inputs_list(training_num):
@@ -35,11 +35,11 @@ def init_weight_structure():
         x.append([])
         wireNum = nodesPerLayer[layer] * nodesPerLayer[layer + 1]
         for wire in range(wireNum):
-            W = 0
+            tempW = 0
             if len(nodesPerLayer) > 2:
-                while not W:
-                    W = uniform(0, 0.00000000001)
-            x[layer].append(W)
+                while not tempW:
+                    tempW = uniform(0, 0.00000000001)
+            x[layer].append(tempW)
     return x
 
 
@@ -50,7 +50,11 @@ def init_network():
 
 
 def sigmoid(x):
-    return 1 / (1 + exp(-x))
+    return 1 / (1+ exp(-x))
+
+
+def round_n_to_rdp(n, r):
+    return round((10**r)*n)/(10**r)
 
 
 def exagerate_outputs(x):
@@ -62,12 +66,7 @@ def wrong_input():
     exit()
 
 
-def cost_output_node(i, final_node, aim):
-    c[i] = (final_node[i] - aim[i]) ** 2
-
-
-def round_n_to_rdp(n, r):
-    return round((10**r)*n)/(10**r)
+###########################
 
 
 def val_of_node(x, y):
@@ -75,6 +74,10 @@ def val_of_node(x, y):
     for i in range(nodesPerLayer[x-1]):
         s += n[x-1][i] * w[x-1][y + i * nodesPerLayer[x]]
     return s
+
+
+def cost_output_node(i, final_node, aim):
+    c[i] = (final_node[i] - aim[i]) ** 2
 
 
 def aim_of_prev_node(x, y):
@@ -173,10 +176,15 @@ def trialling():
 
     for i in range(trial_num):
         n[0] = trials[i][0]
-        n[1][0] = w[0][0] * n[0][0] + w[0][2] * n[0][1]
-        n[1][1] = w[0][1] * n[0][0] + w[0][3] * n[0][1]
-        n[1][0] = exagerate_outputs(n[1][0])
-        n[1][1] = exagerate_outputs(n[1][1])
+        if len(nodesPerLayer) > 2:
+            for j in range(len(nodesPerLayer)-1):
+                if j:
+                    for k in range(nodesPerLayer[j]):
+                        n[j][k] = val_of_node(j, k)
+
+        for j in range(nodesPerLayer[-1]):
+            n[len(nodesPerLayer)-1][j] = exagerate_outputs(val_of_node(len(nodesPerLayer)-1, j))
+
         if (n[1][0] > n[1][1] and not trials[i][1][1]) or (n[1][0] < n[1][1] and not trials[i][1][0]):
             correct_num += 1
     print('\nMy neural network was correct', 100 * correct_num / trial_num, '% of the time.\n')
