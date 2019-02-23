@@ -4,19 +4,35 @@ from random import *
 from sys import exit
 
 
-nodesPerLayer = [2, 2, 2]
+nodesPerLayer = [2, 3, 2]
+
+random_range = [0, 100]
+random_range_avg = sum(random_range)/2
+
+
+def destandardise_range(K):
+    return (K*random_range_avg)+random_range_avg
 
 
 def generate_inputs_list(training_num):
     l = []
     for i in range(training_num):
-        x = uniform(-1, 1)
-        y = uniform(-1, 1)
-        l.append([[x, y]])
-        if x >= y:
-            l[i].append([1, 0])
-        else:
-            l[i].append([0, 1])
+        valsToAdd = []
+        maxInExample = -1
+        for j in range(nodesPerLayer[0]):
+            val = uniform(-1, 1)
+            if val > maxInExample:
+                maxInExample = val
+                maxPos = j
+            valsToAdd.append(val)
+        l.append([valsToAdd])
+        answers = []
+        for j in range(nodesPerLayer[0]):
+            if j == maxPos:
+                answers.append(1)
+            else:
+                answers.append(0)
+        l[i].append(answers)
     return l
 
 
@@ -50,20 +66,29 @@ def init_network():
 
 
 def sigmoid(x):
-    return 1 / (1+ exp(-x))
+    return 1 / (1 + exp(-x))
 
 
 def round_n_to_rdp(n, r):
     return round((10**r)*n)/(10**r)
 
-
-def exagerate_outputs(x):
-    return round_n_to_rdp(sigmoid(round_n_to_rdp(x*100, 1)), 1)
+#
+# def exagerate_outputs(x):
+#     return round_n_to_rdp(sigmoid(round_n_to_rdp(x*10, 1)), 1)
 
 
 def wrong_input():
     print("\nOh no!\nYour input is not compatible with our code!\nSorry...")
     exit()
+
+
+def output_is_correct(trials, i):
+    test = []
+    for j in range(nodesPerLayer[-1]):
+        test.append(n[-1][j] == 1 and trials[i][-1][j])
+    if True in test:
+        return True
+    return False
 
 
 ###########################
@@ -161,8 +186,6 @@ def training():
 
     refine_weights()
 
-    return w
-
 
 def trialling():
     global trial_num
@@ -170,10 +193,14 @@ def trialling():
         trial_num = int(input("Number of actual trials after training: "))
     except:
         wrong_input()
-    trials = []
+    try:
+        show_incorrect = int(input("Show the incorrect determinations (0 = no, 1 = yes): "))
+    except:
+        wrong_input()
     correct_num = 0
     trials = generate_inputs_list(trial_num)
-
+    if show_incorrect:
+        print("\nINCORRECT:\n")
     for i in range(trial_num):
         n[0] = trials[i][0]
         if len(nodesPerLayer) > 2:
@@ -181,12 +208,27 @@ def trialling():
                 if j:
                     for k in range(nodesPerLayer[j]):
                         n[j][k] = val_of_node(j, k)
+        maxNeg = 0
+        for j in range(nodesPerLayer[-1]):
+            n[len(nodesPerLayer)-1][j] = (val_of_node(len(nodesPerLayer)-1, j))
+            if n[len(nodesPerLayer)-1][j] < 0 and abs(n[len(nodesPerLayer)-1][j]) > maxNeg:
+                maxNeg = abs(n[len(nodesPerLayer)-1][j])
+
+        maxVal = 0
+        for j in range(nodesPerLayer[-1]):
+            n[len(nodesPerLayer)-1][j] += maxNeg
+            if n[len(nodesPerLayer)-1][j] > maxVal:
+                maxVal = n[len(nodesPerLayer)-1][j]
 
         for j in range(nodesPerLayer[-1]):
-            n[len(nodesPerLayer)-1][j] = exagerate_outputs(val_of_node(len(nodesPerLayer)-1, j))
+            n[len(nodesPerLayer)-1][j] /= maxVal
 
-        if (n[1][0] > n[1][1] and not trials[i][1][1]) or (n[1][0] < n[1][1] and not trials[i][1][0]):
+        if output_is_correct(trials, i):
             correct_num += 1
+        elif show_incorrect:
+            for j in range(nodesPerLayer[0]):
+                n[0][j] = destandardise_range(n[0][j])
+            print(" -", n)
     print('\nMy neural network was correct', 100 * correct_num / trial_num, '% of the time.\n')
 
 
@@ -197,9 +239,11 @@ while play:
     n = init_node_structure()
     w = init_weight_structure()
     a = init_node_structure()
-    c = [0, 0]
-    w = training()
+    c = init_node_structure()[-1]
+    training()
     trialling()
+    for j in range(nodesPerLayer[0]):
+        n[0][j] = destandardise_range(n[0][j])
     print("Last example:", n)
     print("Final weights:", w, "\n")
     if input("Again [Y/n]: ") not in ["Y", "y"]:
