@@ -4,7 +4,7 @@ from random import *
 from sys import exit
 
 
-nodesPerLayer = [5, 5]
+nodesPerLayer = [2, 2]
 
 random_range = [0, 100]
 random_range_avg = sum(random_range)/2
@@ -95,10 +95,6 @@ def val_of_node(x, y, N):
     return s
 
 
-def cost_output_node(i, final_node, aim):
-    return aim[i] #abs((final_node[i] - aim[i])**2)
-
-
 def aim_of_prev_node(x, y):
     s = 0
     for m in range(nodesPerLayer[x+1]):
@@ -154,9 +150,7 @@ def training():
             final_node_temp[j] = val_of_node(len(nodesPerLayer)-1, j, n)
 
         for j in range(nodesPerLayer[-1]):
-            c[j] = inputs[i][1][j]
-
-        a[-1] = c
+            a[-1][j] = inputs[i][1][j]
 
         n[-1] = final_node_temp
 
@@ -239,7 +233,6 @@ while play:
     n = init_node_structure()
     w = init_weight_structure()
     a = init_node_structure()
-    c = init_node_structure()[-1]
     training()
     trialling()
     for j in range(nodesPerLayer[0]):
